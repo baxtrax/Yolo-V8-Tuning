@@ -1,4 +1,0 @@
-# This contains the validation configuration
-data: datasets/drone_real.yaml  # REQUIRED dataset.yaml path
-args: # List of these args can be found here: https://docs.ultralytics.com/usage/cfg/#val
-  batch: 1  # OPTIONAL batch size

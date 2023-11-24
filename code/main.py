@@ -7,25 +7,19 @@ import os
 def main():
     args = setup_argparser()
 
-    # Print current working directory
-    print('Current working directory: ', os.getcwd())
-    print(args.train)
-
-    # Load config files
+    # Load config file
     if args.train is not None:
         with open(args.train, 'r') as f:
             train_cfg = yaml.safe_load(f)
-        train_args = train_cfg.get('args', {})
+        train_args = train_cfg.get('train_args', {})
+        custom_args = train_cfg.get('custom_args', {})
 
-    if args.val is not None:
-        with open(args.val, 'r') as f:
-            val_cfg = yaml.safe_load(f)
-        val_args = val_cfg.get('args', {})
+    trainer = PGTrainer(pc=custom_args.get('pc', 0.1), 
+                        overrides=train_args)
+    trainer.train()
 
-    model = YOLO('yolov8n.pt')
+    # model.train(data=train_cfg['data'], trainer=PGTrainer, name='drone_real_train', **train_args)
 
-    model.train(data=train_cfg['data'], trainer=PGTrainer, name='drone_real_train', **train_args) 
-    # model.val(data=val_cfg['data'], name='drone_real_val', **val_args)
 
 
 def setup_argparser():
