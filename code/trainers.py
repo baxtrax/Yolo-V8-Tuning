@@ -5,7 +5,6 @@ from plausbility_functions import vanilla_grad_attributions
 import torch
 
 # ISSUES:
-# Grad is always NaN.
 # During validation, cant compute gradients not matter what I do.
 
 class PGModel(DetectionModel):
@@ -20,25 +19,35 @@ class PGModel(DetectionModel):
         Returns:
             loss: loss value
         """
+
         if not hasattr(self, 'criterion'):
             self.criterion = self.init_criterion()
 
-        imgs = batch['img'].requires_grad_(True)
+        imgs = batch['img'].requires_grad_(self.training)
+
         preds = self.forward(imgs) if preds is None else preds
         loss = self.criterion(preds, batch)
 
-        # p_loss = self.get_plausbility_loss(imgs, preds)
+        if self.training: # Can only compute gradients during training, not validation
+            p_loss = self.get_plausbility_loss(preds, batch)
+            imgs.requires_grad = False
 
 
         return loss
     
-    def get_plausbility_loss(self, imgs, preds):
+    def get_plausbility_loss(self, preds, batch):
         pred_scores = self.get_pred_scores(preds)
+
         gradients = torch.autograd.grad(pred_scores, 
-                                    imgs, 
-                                    grad_outputs=torch.ones_like(pred_scores),
-                                    retain_graph=True)[0].detach().float()
-        vanilla_grad_attributions = vanilla_grad_attributions(gradients)
+                                        batch['img'], 
+                                        grad_outputs=torch.ones_like(pred_scores),
+                                        retain_graph=True)[0].detach().float()
+
+        # Targets has more then 1 bbox for each image
+        # So run through each list of batch targets and average their plausbility scores
+        
+        print('NAN?: ', torch.isnan(gradients).any().item())
+
 
 
         # Sum across color channels

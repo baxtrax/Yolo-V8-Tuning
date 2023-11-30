@@ -6,4 +6,5 @@ train_args: # List of these args can be found here: https://docs.ultralytics.com
   model: yolov8n.pt # OPTIONAL, pretrained model path
   batch: 16  # OPTIONAL batch size
   epochs: 100  # OPTIONAL Number of epochs
+  amp: False
 
