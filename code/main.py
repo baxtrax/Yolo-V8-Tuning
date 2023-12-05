@@ -1,8 +1,8 @@
 import yaml
 import argparse
-from ultralytics import YOLO
-from trainers import PGTrainer
-import os
+from pgt import PGTYOLO
+from wandb.integration.ultralytics import add_wandb_callback
+import wandb
 
 def main():
     args = setup_argparser()
@@ -12,14 +12,17 @@ def main():
         with open(args.train, 'r') as f:
             train_cfg = yaml.safe_load(f)
         train_args = train_cfg.get('train_args', {})
-        custom_args = train_cfg.get('custom_args', {})
 
-    trainer = PGTrainer(pc=custom_args.get('pc', 0.1), 
-                        overrides=train_args)
-    trainer.train()
+    # Setup wandb and model
+    wandb.init(project="YOLOv8 PGT")
+    model = PGTYOLO("yolov8n.pt")
+    add_wandb_callback(model, max_validation_batches=2, enable_model_checkpointing=True)
 
-    # model.train(data=train_cfg['data'], trainer=PGTrainer, name='drone_real_train', **train_args)
+    model.train(**train_args)
 
+    # model.val()
+    # model(["img1.jpeg", "img2.jpeg"])
+    wandb.finish()
 
 
 def setup_argparser():

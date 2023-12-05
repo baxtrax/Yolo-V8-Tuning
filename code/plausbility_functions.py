@@ -19,26 +19,29 @@ def vanilla_grad_attributions(gradients):
 def evaluate_plausability(attribution, target_bboxes):
     # Get image size
     img_height, img_width = attribution.shape[2:]
+    attribution = torch.abs(attribution)
 
     # Convert to xyxy, scale to image size, and round down to nearest integer
     xyxy_scaled = (corners_coords(target_bboxes) * torch.tensor([img_width, 
                                                                  img_height, 
                                                                  img_width, 
-                                                                 img_height])).int()
+                                                                 img_height]).to(attribution.device)).int()
+    
     
     # Sum the attribution map for each batch entry and divide by the total sum
-    plausability_scores = torch.tensor([])
+    attr_total = attribution[0].sum(dim=None)
+
+    plausability_scores = torch.tensor([]).to(attribution.device)
     for i in range(xyxy_scaled.shape[0]):
-        attr_in_target_bbox = attribution[i, :, xyxy_scaled[i, 1]:xyxy_scaled[i,3], xyxy_scaled[i, 0]:xyxy_scaled[i, 2]].sum(dim=None)
-        attr_total = attribution[i].sum(dim=None)
+        attr_in_target_bbox = attribution[0, :, xyxy_scaled[i, 1]:xyxy_scaled[i,3], xyxy_scaled[i, 0]:xyxy_scaled[i, 2]].sum(dim=None)
         plausability_score = attr_in_target_bbox/attr_total
         plausability_scores = torch.cat((plausability_scores, 
                                          plausability_score.reshape(1)), 
                                          dim=0)
         
-    return plausability_scores
+    return plausability_scores.mean()
     
-
+# Swap to xyxy from v8Detectionloss?
 def corners_coords(center_xywh):
     center_x, center_y, w, h = torch.unbind(center_xywh, dim=1)
     x = center_x - w/2

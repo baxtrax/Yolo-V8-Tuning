@@ -162,3 +162,5 @@ datasets/*
 code/runs
 *.pt
 .vscode
+*.onnx
+wandb
