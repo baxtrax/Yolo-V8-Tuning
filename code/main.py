@@ -1,7 +1,7 @@
 import yaml
 import argparse
 from pgt import PGTYOLO
-from wandb.integration.ultralytics import add_wandb_callback
+import callbacks as cb
 import wandb
 
 def main():
@@ -16,7 +16,7 @@ def main():
     # Setup wandb and model
     wandb.init(project="YOLOv8 PGT")
     model = PGTYOLO("yolov8n.pt")
-    add_wandb_callback(model, max_validation_batches=2, enable_model_checkpointing=True)
+    setup_wandb_callbacks(model)
 
     model.train(**train_args)
 
@@ -44,6 +44,17 @@ def setup_argparser():
         parser.error("Either --train or --val must be specified")
     
     return args
+
+def setup_wandb_callbacks(model):
+    """
+    Sets up the wandb callbacks for the model.
+
+    Returns:
+        callbacks: The callbacks for the model.
+    """
+    model.add_callback("on_train_start", cb.on_train_start)
+    model.add_callback("on_fit_epoch_end", cb.on_fit_epoch_end)
+    model.add_callback("on_train_batch_end", cb.on_train_batch_end)
 
 
 if __name__ == '__main__':

@@ -43,19 +43,19 @@ class PGModel(DetectionModel):
         # Initialize criterion if not already done
         if not hasattr(self, 'criterion'):
             self.criterion = self.init_criterion()
-            wandb.run.config.update({'pc': self.pc})
+            # wandb.run.config.train.update({'pc': self.pc})
 
         if isinstance(self.pc, float):
             self.pc = torch.tensor(self.pc).to(batch['img'].device)
 
         # Make imgs require gradients so we can use gradients for attribution
-        imgs = batch['img'].requires_grad_(self.training)
+        imgs = batch['img'].requires_grad_(self.training and not self.pc == 0)
 
         # Compute loss
         preds = self.forward(imgs) if preds is None else preds
         loss = self.criterion(preds, batch)
 
-        if self.training: # Can only compute gradients during training, not validation
+        if self.training and not self.pc == 0: # Can only compute gradients during training, not validation
             p_loss = self.get_plausbility_loss(preds, batch)
             wandb.log({'plausbility_loss': p_loss})
             imgs.requires_grad = False
