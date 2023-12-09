@@ -1,9 +1,9 @@
 from ultralytics.models.yolo.detect import DetectionTrainer
-from ultralytics.nn.tasks import DetectionModel
-from ultralytics.utils import (RANK, DEFAULT_CFG)
 from plausbility_functions import evaluate_plausability
-from ultralytics.models import yolo
+from ultralytics.utils import (RANK, DEFAULT_CFG)
+from ultralytics.nn.tasks import DetectionModel
 from ultralytics.engine.model import Model
+from ultralytics.models import yolo
 import wandb
 import torch
 
@@ -96,7 +96,6 @@ class PGModel(DetectionModel):
         plausability_scores = torch.stack(plausability_scores)
         
         return plausability_scores.mean() # Return mean plausbility score for batch
-    
 
     def get_pred_scores(self, preds):
         # This is ripped from the v8DetectionLoss

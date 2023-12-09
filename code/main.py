@@ -20,8 +20,6 @@ def main():
 
     model.train(**train_args)
 
-    # model.val()
-    # model(["img1.jpeg", "img2.jpeg"])
     wandb.finish()
 
 
@@ -55,7 +53,6 @@ def setup_wandb_callbacks(model):
     model.add_callback("on_train_start", cb.on_train_start)
     model.add_callback("on_fit_epoch_end", cb.on_fit_epoch_end)
     model.add_callback("on_train_batch_end", cb.on_train_batch_end)
-
 
 if __name__ == '__main__':
     main()
