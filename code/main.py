@@ -15,7 +15,7 @@ def main():
 
     # Setup wandb and model
     wandb.init(project="YOLOv8 PGT")
-    model = PGTYOLO("yolov8n.pt")
+    model = PGTYOLO("yolov8n.yaml")
     setup_wandb_callbacks(model)
 
     model.train(**train_args)
