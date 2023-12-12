@@ -31,6 +31,7 @@ def evaluate_plausability(attribution, target_bboxes):
     # Sum the attribution map for each batch entry and divide by the total sum
     attr_total = attribution[0].sum(dim=None)
 
+    # 1791 conver to batch using new attribution bit nask
     plausability_scores = torch.tensor([]).to(attribution.device)
     for i in range(xyxy_scaled.shape[0]):
         attr_in_target_bbox = attribution[0, :, xyxy_scaled[i, 1]:xyxy_scaled[i,3], xyxy_scaled[i, 0]:xyxy_scaled[i, 2]].sum(dim=None)

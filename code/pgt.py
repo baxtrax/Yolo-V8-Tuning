@@ -47,6 +47,9 @@ class PGModel(DetectionModel):
 
         if isinstance(self.pc, float):
             self.pc = torch.tensor(self.pc).to(batch['img'].device)
+            current = wandb.config.train
+            current['pc'] = self.pc
+            wandb.config.update({'train': current})
 
         # Make imgs require gradients so we can use gradients for attribution
         imgs = batch['img'].requires_grad_(self.training and not self.pc == 0)
@@ -56,11 +59,20 @@ class PGModel(DetectionModel):
         loss = self.criterion(preds, batch)
 
         if self.training and not self.pc == 0: # Can only compute gradients during training, not validation
-            p_loss = self.pc * self.get_plausbility_loss(preds, batch)
+            p_loss = self.get_plausbility_loss(preds, batch)
+            p_loss *= self.pc # Weight plausbility loss
+
+            imgs.requires_grad = False # should this be true?
+
             if RANK in (-1, 0):
                 wandb.log({'train/plausbility_loss': p_loss})
-            imgs.requires_grad = False
-            loss = (loss[0] - p_loss, loss[1])
+
+
+            # Undo batch scaling, add in new loss, and reapply batch scaling
+            # Ideally this would actually be a part of the overall loss function
+            # This was quicker to implement though
+            batch_size = imgs.shape[0]
+            loss = (((loss[0]/batch_size) + p_loss)*batch_size, loss[1])
 
         return loss
     
@@ -96,7 +108,7 @@ class PGModel(DetectionModel):
             plausability_scores.append(evaluate_plausability(gradient.unsqueeze(0), target).mean())
         plausability_scores = torch.stack(plausability_scores)
         
-        return plausability_scores.mean() # Return mean plausbility score for batch
+        return 1-plausability_scores.mean() # Return mean plausbility score for batch
 
     def get_pred_scores(self, preds):
         # This is ripped from the v8DetectionLoss
