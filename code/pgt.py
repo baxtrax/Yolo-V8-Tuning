@@ -56,11 +56,11 @@ class PGModel(DetectionModel):
         loss = self.criterion(preds, batch)
 
         if self.training and not self.pc == 0: # Can only compute gradients during training, not validation
-            p_loss = self.get_plausbility_loss(preds, batch)
+            p_loss = self.pc * self.get_plausbility_loss(preds, batch)
             if RANK in (-1, 0):
                 wandb.log({'train/plausbility_loss': p_loss})
             imgs.requires_grad = False
-            loss = (loss[0] - (self.pc * p_loss), loss[1])
+            loss = (loss[0] - p_loss, loss[1])
 
         return loss
     
