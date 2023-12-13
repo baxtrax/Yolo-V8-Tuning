@@ -7,6 +7,19 @@ from ultralytics.models import yolo
 import wandb
 import torch
 
+import numpy as np
+import matplotlib.pyplot as plt
+
+def imshow(img, save_path=None):
+    try:
+        npimg = img.cpu().detach().numpy()
+    except:
+        npimg = img
+    tpimg = np.transpose(npimg, (1, 2, 0))
+    plt.imshow(tpimg)
+    if save_path != None:
+        plt.savefig(str(str(save_path) + ".png"))
+
 # ISSUES:
 # During validation, cant compute gradients not matter what I do.
 
@@ -75,9 +88,10 @@ class PGModel(DetectionModel):
             loss = (((loss[0]/batch_size) + p_loss)*batch_size, loss[1])
 
         return loss
-    
 
-    def get_plausbility_loss(self, preds, batch):
+    #plt.show()
+
+    def get_plausbility_loss(self, preds, batch, debug=False):
         """
         Get the plausbility loss for a batch of images and predictions
 
@@ -96,19 +110,54 @@ class PGModel(DetectionModel):
         gradients = torch.autograd.grad(pred_scores, 
                                         batch['img'], 
                                         grad_outputs=torch.ones_like(pred_scores),
-                                        retain_graph=True)[0].detach().float()
+                                        retain_graph=True)[0].detach().float().abs()
         
         # Rearange targets in batch index groups
-        targets = torch.cat((batch['batch_idx'].view(-1, 1), batch['bboxes']), 1)  
-        targets = self.process_targets(targets, gradients)
+        # targets = torch.cat((batch['batch_idx'].view(-1, 1), batch['bboxes']), 1)  
+        # targets = self.process_targets(targets, gradients)
 
-        # Compute plausbility scores per batch index
-        plausability_scores = []
-        for gradient, target in zip(gradients, targets):
-            plausability_scores.append(evaluate_plausability(gradient.unsqueeze(0), target).mean())
-        plausability_scores = torch.stack(plausability_scores)
+        target_bboxes = batch['bboxes']        
+
+        # Swap to xyxy from v8Detectionloss?
+        def corners_coords(center_xywh):
+            center_x, center_y, w, h = torch.unbind(center_xywh, dim=1)
+            x = center_x - w/2
+            y = center_y - h/2
+            return torch.stack([x, y, x+w, y+h], dim=1)
+
+        img_height, img_width = batch['img'].shape[2:]
+        # Convert to xyxy, scale to image size, and round down to nearest integer
+        xyxy_scaled = (corners_coords(target_bboxes) * torch.tensor([img_width, 
+                                                                    img_height, 
+                                                                    img_width, 
+                                                                    img_height])).int()
+
+        target_idxes = batch['batch_idx'].int()
         
-        return 1-plausability_scores.mean() # Return mean plausbility score for batch
+        coords_map = torch.zeros_like(gradients, dtype=torch.bool)
+        # rows = np.arange(co.shape[0])
+        x1, x2 = xyxy_scaled[:,1], xyxy_scaled[:,3]
+        y1, y2 = xyxy_scaled[:,0], xyxy_scaled[:,2]
+        
+        for ic in range(xyxy_scaled.shape[0]): # potential for speedup here with torch indexing instead of for loop
+            coords_map[target_idxes[ic], :,x1[ic]:x2[ic],y1[ic]:y2[ic]] = True
+
+        # debug=True
+        if debug:
+            for i in range(len(coords_map)):
+                # coords_map3ch = torch.cat([coords_map[i], coords_map[i], coords_map[i]], dim=0)
+                test_bbox = torch.zeros_like(batch['img'][i])
+                test_bbox[coords_map[i]] = batch['img'][i][coords_map[i]]
+                imshow(test_bbox, save_path='figs/test_bbox')
+                imshow(batch['img'][i], save_path='figs/im0')
+                imshow(gradients[i], save_path='figs/attr')
+        
+        IoU_num = (torch.sum(gradients[coords_map]))
+        IoU_denom = torch.sum(gradients)
+        IoU = (IoU_num / IoU_denom)
+        plausability_scores = IoU
+        
+        return 1-plausability_scores # Return mean plausbility score for batch
 
     def get_pred_scores(self, preds):
         # This is ripped from the v8DetectionLoss
@@ -125,6 +174,7 @@ class PGModel(DetectionModel):
         """
         # TODO: This is a hacky way to do this, but it works for now
         # Convert this to batch tensor operations
+        # Converts from idx, xyxy to grousp of xyxy per idx
         processed_targets = []
 
         for j in torch.unique(targets[:, 0]):
