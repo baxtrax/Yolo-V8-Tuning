@@ -3,6 +3,6 @@ train_args: # List of these args can be found here: https://docs.ultralytics.com
   data: coco128.yaml  # REQUIRED, dataset.yaml path
   pc: 4.5 # OPTIONAL, plausibility coefficient
   batch: 16  # OPTIONAL batch size
-  epochs: 100  # OPTIONAL Number of epochs
+  epochs: 30  # OPTIONAL Number of epochs
   amp: False
 
